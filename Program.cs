@@ -102,16 +102,17 @@ app.UseAuthorization();
 
 // ===== Pizza Endpoints =====
 
-// GET all pizzas (Public - anyone can view menu)
+// GET all pizzas (Private - Any logged in user can view)
 app.MapGet("/api/pizzas", async (PizzaDbContext db) =>
 {
     return Results.Ok(await db.Pizzas.ToListAsync());
 })
 .WithName("GetAllPizzas")
 .WithOpenApi()
-.AllowAnonymous();
+.RequireAuthorization();
+// .AllowAnonymous();
 
-// GET a specific pizza by ID (Public)
+// GET a specific pizza by ID (Private - Any logged in user can view)
 app.MapGet("/api/pizzas/{id}", async (int id, PizzaDbContext db) =>
 {
     var pizza = await db.Pizzas.FindAsync(id);
@@ -119,7 +120,8 @@ app.MapGet("/api/pizzas/{id}", async (int id, PizzaDbContext db) =>
 })
 .WithName("GetPizzaById")
 .WithOpenApi()
-.AllowAnonymous();
+.RequireAuthorization();
+// .AllowAnonymous();
 
 // PUT update pizza price (Employee only)
 app.MapPut("/api/pizzas/{id}/price", async (int id, decimal newPrice, PizzaDbContext db) =>
