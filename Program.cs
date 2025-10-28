@@ -76,6 +76,25 @@ app.MapPut("/api/pizzas/{id}/price", async (int id, decimal newPrice, PizzaDbCon
 .WithName("UpdatePizzaPrice")
 .WithOpenApi();
 
+// PUT update pizza sold out status
+app.MapPut("/api/pizzas/{id}/soldout", async (int id, bool soldOut, PizzaDbContext db) =>
+{
+    var pizza = await db.Pizzas.FindAsync(id);
+    if (pizza is null)
+    {
+        return Results.NotFound(new { message = "Pizza not found" });
+    }
+
+    pizza.SoldOut = soldOut;
+    pizza.UpdatedAt = DateTime.UtcNow;
+
+    await db.SaveChangesAsync();
+
+    return Results.Ok(pizza);
+})
+.WithName("UpdatePizzaSoldOutStatus")
+.WithOpenApi();
+
 // ===== Order Endpoints =====
 
 // GET most recent 25 orders
