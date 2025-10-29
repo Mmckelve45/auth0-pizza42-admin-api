@@ -17,7 +17,12 @@ builder.Services.AddCors(options =>
 {
     options.AddPolicy("AllowReactApp", policy =>
     {
-        policy.WithOrigins("http://localhost:3000", "http://localhost:3002", "http://localhost:5173") // React dev servers (CRA and Vite)
+        policy.WithOrigins(
+                  "http://localhost:3000",           // React dev server (CRA)
+                  "http://localhost:3002",           // React dev server (alt port)
+                  "http://localhost:5173",           // React dev server (Vite)
+                  "https://auth0-pizza42.vercel.app" // Production Vercel app
+              )
               .AllowAnyHeader()
               .AllowAnyMethod();
     });
@@ -85,13 +90,33 @@ builder.Services.AddSwaggerGen(options =>
 var app = builder.Build();
 
 // Configure the HTTP request pipeline.
-if (app.Environment.IsDevelopment())
-{
-    app.UseSwagger();
-    app.UseSwaggerUI();
-}
+// Enable Swagger in all environments (for internal admin API)
+app.UseSwagger();
+app.UseSwaggerUI();
 
-app.UseHttpsRedirection();
+// Conditional HTTPS Redirection
+// AWS Gateway sends requests via HTTP to backend (port 8080), but we want
+// direct access to force HTTPS. This middleware:
+// 1. Always allows HTTP on port 8080 (AWS Gateway backend port)
+// 2. Redirects other HTTP requests to HTTPS on port 443 (direct access)
+// This gives us security for direct access while allowing Gateway's HTTP backend
+app.Use(async (context, next) =>
+{
+    // Port 8080 is the backend port for AWS Gateway - always allow HTTP
+    var isBackendPort = context.Request.Host.Port == 8080;
+
+    // If not backend port and not HTTPS, redirect to HTTPS on port 443
+    if (!isBackendPort && !context.Request.IsHttps)
+    {
+        // Build HTTPS URL on standard port 443
+        var httpsUrl = $"https://{context.Request.Host.Host}{context.Request.Path}{context.Request.QueryString}";
+        context.Response.Redirect(httpsUrl, permanent: false);
+        return;
+    }
+
+    // Allow the request to continue (backend port or already HTTPS)
+    await next();
+});
 
 // Enable CORS
 app.UseCors("AllowReactApp");
